@@ -174,6 +174,23 @@ void ImageConverter::toRosMsg(std::shared_ptr<dai::ImgFrame> inData, std::deque<
     return;
 }
 
+void ImageConverter::toComprRosMsg(std::shared_ptr<dai::ImgFrame> inData, std::deque<sensor_msgs::CompressedImage>& outImageMsgs) {
+    auto tstamp = inData->getTimestamp();
+    sensor_msgs::CompressedImage outImageMsg;
+    StdMsgs::Header header;
+    header.frame_id = _frameName;
+
+    header.stamp = getFrameTime(_rosBaseTime, _steadyBaseTime, tstamp);
+
+    outImageMsg.header = header;
+    outImageMsg.format = "jpeg"; //ToDo: Not hard coded!
+
+    outImageMsg.data = inData->getData();
+
+    outImageMsgs.push_back(outImageMsg);
+    return;
+}
+
 // TODO(sachin): Not tested
 void ImageConverter::toDaiMsg(const ImageMsgs::Image& inMsg, dai::ImgFrame& outData) {
     std::unordered_map<dai::RawImgFrame::Type, std::string>::iterator revEncodingIter;

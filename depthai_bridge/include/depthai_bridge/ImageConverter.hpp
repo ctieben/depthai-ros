@@ -17,6 +17,7 @@
 
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/CompressedImage.h"
 #include "std_msgs/Header.h"
 
 namespace dai {
@@ -38,6 +39,7 @@ class ImageConverter {
                                dai::RawImgFrame::Type type,
                                const sensor_msgs::CameraInfo& info);
     void toRosMsg(std::shared_ptr<dai::ImgFrame> inData, std::deque<ImageMsgs::Image>& outImageMsgs);
+    void toComprRosMsg(std::shared_ptr<dai::ImgFrame> inData, std::deque<sensor_msgs::CompressedImage>& outImageMsgs);
     ImagePtr toRosMsgPtr(std::shared_ptr<dai::ImgFrame> inData);
 
     void toDaiMsg(const ImageMsgs::Image& inMsg, dai::ImgFrame& outData);
