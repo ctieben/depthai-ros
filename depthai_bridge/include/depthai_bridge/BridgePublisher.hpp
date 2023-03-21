@@ -10,9 +10,11 @@
 #include "camera_info_manager/camera_info_manager.h"
 #include "depthai/depthai.hpp"
 #include "image_transport/image_transport.h"
+#include "compressed_image_transport/compressed_publisher.h"
 #include "ros/console.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/CompressedImage.h"
 
 namespace dai {
 
@@ -28,8 +30,11 @@ class BridgePublisher {
    public:
     using ConvertFunc = std::function<void(std::shared_ptr<SimMsg>, std::deque<RosMsg>&)>;
 
-    using CustomPublisher = typename std::
-        conditional<std::is_same<RosMsg, ImageMsgs::Image>::value, std::shared_ptr<image_transport::Publisher>, std::shared_ptr<rosOrigin::Publisher> >::type;
+    using CustomPublisher = typename std::conditional<std::is_same<RosMsg, ImageMsgs::Image>::value, std::shared_ptr<image_transport::Publisher>, std::shared_ptr<rosOrigin::Publisher> >::type;
+
+    // RosMsg type Image or CompressedImage than type is std::shared_ptr<image_transport::Publisher> else std::shared_ptr<rosOrigin::Publisher> 
+    //using CustomPublisher = typename std::conditional<std::is_same<RosMsg, ImageMsgs::Image>::value, std::shared_ptr<image_transport::Publisher>, typename std::conditional<std::is_same<RosMsg, ImageMsgs::CompressedImage>::value, std::shared_ptr<compressed_image_transport::CompressedPublisher>, std::shared_ptr<rosOrigin::Publisher> >::type >::type;
+
 
     BridgePublisher(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                     rosOrigin::NodeHandle nh,
@@ -46,6 +51,15 @@ class BridgePublisher {
                     int queueSize,
                     ImageMsgs::CameraInfo cameraInfoData,
                     std::string cameraName);
+
+    BridgePublisher(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
+                    rosOrigin::NodeHandle nh,
+                    std::string rosTopic,
+                    ConvertFunc converter,
+                    int queueSize,
+                    ImageMsgs::CameraInfo cameraInfoData,
+                    std::string cameraName,
+                    std::string compression);
 
     /**
      * Tag Dispacher function to to overload the Publisher to ImageTransport Publisher
@@ -114,6 +128,7 @@ BridgePublisher<RosMsg, SimMsg>::BridgePublisher(std::shared_ptr<dai::DataOutput
     _rosPublisher = advertise(queueSize, std::is_same<RosMsg, ImageMsgs::Image>{});
 }
 
+
 template <class RosMsg, class SimMsg>
 BridgePublisher<RosMsg, SimMsg>::BridgePublisher(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
                                                  rosOrigin::NodeHandle nh,
@@ -131,6 +146,27 @@ BridgePublisher<RosMsg, SimMsg>::BridgePublisher(std::shared_ptr<dai::DataOutput
       _cameraName(cameraName) {
     // ROS_DEBUG_STREAM_NAMED(LOG_TAG, "Publisher Type : " << typeid(CustomPublisher).name());
     _rosPublisher = advertise(queueSize, std::is_same<RosMsg, ImageMsgs::Image>{});
+}
+
+template <class RosMsg, class SimMsg>
+BridgePublisher<RosMsg, SimMsg>::BridgePublisher(std::shared_ptr<dai::DataOutputQueue> daiMessageQueue,
+                                                 rosOrigin::NodeHandle nh,
+                                                 std::string rosTopic,
+                                                 ConvertFunc converter,
+                                                 int queueSize,
+                                                 ImageMsgs::CameraInfo cameraInfoData,
+                                                 std::string cameraName,
+                                                 std::string compression)
+    : _daiMessageQueue(daiMessageQueue),
+      _nh(nh),
+      _converter(converter),
+      _it(_nh),
+      _cameraInfoData(cameraInfoData),
+      _rosTopic(rosTopic),
+      _cameraName(cameraName),
+      _compression(compression) {
+    // ROS_DEBUG_STREAM_NAMED(LOG_TAG, "Publisher Type : " << typeid(CustomPublisher).name());
+    _rosPublisher = advertise(queueSize, std::is_same<RosMsg, ImageMsgs::CompressedImage>{});
 }
 
 template <class RosMsg, class SimMsg>
@@ -225,7 +261,7 @@ void BridgePublisher<RosMsg, SimMsg>::publishHelper(std::shared_ptr<SimMsg> inDa
         while(opMsgs.size()) {
             RosMsg currMsg = opMsgs.front();
             if(mainSubCount > 0) {
-                _rosPublisher->publish(currMsg);
+                _rosPublisher->publish(currMsg);    // compressed image transport has no publish for compressed images! :-/
             }
 
             if(infoSubCount > 0) {
