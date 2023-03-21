@@ -86,7 +86,7 @@ class BridgePublisher {
     CustomPublisher _rosPublisher;
 
     std::thread _readingThread;
-    std::string _rosTopic, _camInfoFrameId, _cameraName, _cameraParamUri;
+    std::string _rosTopic, _camInfoFrameId, _cameraName, _cameraParamUri, _compression;
     std::unique_ptr<camera_info_manager::CameraInfoManager> _camInfoManager;
     bool _isCallbackAdded = false;
     bool _isImageMessage = false;  // used to enable camera info manager
